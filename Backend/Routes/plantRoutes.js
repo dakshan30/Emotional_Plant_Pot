@@ -3,7 +3,6 @@ import PlantData from "../models/PlantData.js";
 
 const router = express.Router();
 
-// Add new reading (ESP32 POST here)
 router.post("/", async (req, res) => {
   try {
     const { moisture, temperature, light } = req.body;
