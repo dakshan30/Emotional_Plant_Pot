@@ -3,9 +3,13 @@ import { useDevice } from "../context/DeviceConnectionProvider";
 import "./NavBar.css";
 
 export default function Navbar() {
-  const { status, isConnected, isConnecting, connect, mockMode, transport } = useDevice();
+  const { status, isConnected, isConnecting, connect, disconnect, mockMode, transport } = useDevice();
 
-  const onStart = async () => {
+  const onMainAction = async () => {
+    if (isConnected) {
+      disconnect();
+      return;
+    }
     try {
       await connect();
     } catch {
@@ -14,6 +18,12 @@ export default function Navbar() {
   };
 
   const indicator = getIndicator(status, isConnected, isConnecting);
+
+  const buttonLabel = isConnecting
+    ? "Connecting"
+    : isConnected
+      ? "Disconnect"
+      : "Connect";
 
   return (
     <header className="navHeader">
@@ -52,22 +62,20 @@ export default function Navbar() {
           </NavLink>
         </div>
 
-        {/* Right side: status + start button */}
+        {/* Right side: status + start/disconnect button */}
         <div className="navRight">
           <div className={`navConn navConn-${indicator.tone}`} role="status" aria-live="polite">
             <span className="navConnDot" aria-hidden="true" />
             <div className="navConnText">
               <div className="navConnTitle">{indicator.title}</div>
-              <div className="navConnMeta">
-                {mockMode ? "Mock" : transport.toUpperCase()}
-              </div>
+              <div className="navConnMeta">{mockMode ? "Mock" : transport.toUpperCase()}</div>
             </div>
           </div>
 
           <button
             className="navGhostBtn"
-            onClick={onStart}
-            disabled={isConnecting || isConnected}
+            onClick={onMainAction}
+            disabled={isConnecting}
             aria-busy={isConnecting}
             type="button"
           >
@@ -76,10 +84,8 @@ export default function Navbar() {
                 <span className="navSpinner" aria-hidden="true" />
                 Connecting
               </span>
-            ) : isConnected ? (
-              "Connected"
             ) : (
-              "Start"
+              buttonLabel
             )}
           </button>
         </div>

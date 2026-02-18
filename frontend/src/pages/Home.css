@@ -11,7 +11,7 @@ html, body { height: 100%; }
 body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; color: var(--navy); }
 
 .home{
-  min-height: 100vh;
+  /* min-height: 100vh; */
   background: var(--bg);
   position: relative;
   overflow: hidden;
@@ -33,8 +33,9 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
 
 .container{
   width: min(1120px, calc(100% - 48px));
+  height: 85vh;
   margin: 0 auto;
-  padding: 28px 0;
+  /* padding: 28px 0; */
 }
 
 .hero{

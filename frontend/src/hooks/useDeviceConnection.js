@@ -3,9 +3,9 @@ import DeviceService from "../services/DeviceService";
 
 /**
  * useDeviceConnection
- * - Central state management for connectivity + telemetry
- * - Auto reconnect with exponential backoff
- * - Works in MOCK mode by default (static demo)
+ * - Does NOT auto-connect on refresh by default.
+ * - Connection starts only when you call connect().
+ * - Auto-reconnect works ONLY after the first user-initiated connect.
  */
 export default function useDeviceConnection(options = {}) {
   const {
@@ -17,13 +17,19 @@ export default function useDeviceConnection(options = {}) {
     mqttTopic = getEnv("VITE_MQTT_TOPIC", getEnv("REACT_APP_MQTT_TOPIC", "plantpot/telemetry")),
     mqttUsername = getEnv("VITE_MQTT_USERNAME", getEnv("REACT_APP_MQTT_USERNAME", "")),
     mqttPassword = getEnv("VITE_MQTT_PASSWORD", getEnv("REACT_APP_MQTT_PASSWORD", "")),
-    deviceId = options.deviceId || "demo-device"
+    deviceId = options.deviceId || "demo-device",
+
+    // NEW: control auto-connect behavior
+    autoConnect = options.autoConnect ?? false
   } = options;
 
   const serviceRef = useRef(null);
   const reconnectTimerRef = useRef(null);
   const reconnectAttemptRef = useRef(0);
   const manuallyDisconnectedRef = useRef(false);
+
+  // NEW: becomes true only after user clicks "Start Monitoring"
+  const hasUserStartedRef = useRef(false);
 
   const [status, setStatus] = useState({ state: "idle", detail: "" }); // idle|connecting|connected|disconnected|error
   const [lastError, setLastError] = useState(null);
@@ -49,9 +55,8 @@ export default function useDeviceConnection(options = {}) {
     [transport, mockMode, restBaseUrl, wsUrl, mqttBrokerUrl, mqttTopic, mqttUsername, mqttPassword, deviceId]
   );
 
-  // Create service once per config
   useEffect(() => {
-    // cleanup existing
+    // cleanup existing service
     if (serviceRef.current) {
       serviceRef.current.disconnect();
       serviceRef.current = null;
@@ -78,10 +83,13 @@ export default function useDeviceConnection(options = {}) {
   }, [config]);
 
   const scheduleReconnect = useCallback(() => {
+    // Do not reconnect unless:
+    // 1) user clicked start at least once, AND
+    // 2) user didn't manually disconnect
+    if (!hasUserStartedRef.current) return;
     if (manuallyDisconnectedRef.current) return;
 
     const attempt = reconnectAttemptRef.current;
-    // backoff: 1s, 2s, 4s, 8s, 10s max
     const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
 
     if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
@@ -89,31 +97,31 @@ export default function useDeviceConnection(options = {}) {
       reconnectAttemptRef.current += 1;
       try {
         await serviceRef.current?.connect();
-        reconnectAttemptRef.current = 0; // reset on success
+        reconnectAttemptRef.current = 0;
       } catch {
         scheduleReconnect();
       }
     }, delay);
   }, []);
 
-  // Auto reconnect when we become disconnected/error after a prior connect attempt
+  // Auto reconnect only after user initiated connect
   useEffect(() => {
+    if (!hasUserStartedRef.current) return;
+
     if (status.state === "disconnected" || status.state === "error") {
-      // only try to reconnect if user had clicked connect before
-      if (!manuallyDisconnectedRef.current && reconnectAttemptRef.current >= 0) {
-        scheduleReconnect();
-      }
+      scheduleReconnect();
     }
   }, [status.state, scheduleReconnect]);
 
   const connect = useCallback(async () => {
+    hasUserStartedRef.current = true; // user initiated connection
     manuallyDisconnectedRef.current = false;
+
     setLastError(null);
     reconnectAttemptRef.current = 0;
 
     try {
       await serviceRef.current?.connect();
-      // success => no need to schedule
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     } catch (e) {
@@ -133,9 +141,19 @@ export default function useDeviceConnection(options = {}) {
     serviceRef.current?.disconnect();
   }, []);
 
+  // OPTIONAL: if you ever want auto-connect in some page, you can pass autoConnect:true
+  useEffect(() => {
+    if (!autoConnect) return;
+    if (hasUserStartedRef.current) return;
+    // mark as user-started so reconnect works in this mode
+    hasUserStartedRef.current = true;
+    connect().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoConnect]);
+
   return {
     data,
-    status, // { state, detail }
+    status,
     lastError,
     connect,
     disconnect,
@@ -147,8 +165,6 @@ export default function useDeviceConnection(options = {}) {
 }
 
 function getEnv(key, fallback) {
-  // Vite uses import.meta.env, CRA uses process.env
-  // Guard for environments where import.meta is unavailable
   try {
     if (typeof import.meta !== "undefined" && import.meta.env && key in import.meta.env) {
       return import.meta.env[key];
