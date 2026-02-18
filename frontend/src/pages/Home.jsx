@@ -8,8 +8,17 @@ import "./Home.css";
 export default function Home() {
   const navigate = useNavigate();
 
-  const { data, status, lastError, connect, isConnecting, isConnected, transport, mockMode } =
-    useDevice();
+  const {
+    data,
+    status,
+    lastError,
+    connect,
+    disconnect,
+    isConnecting,
+    isConnected,
+    transport,
+    mockMode
+  } = useDevice();
 
   const mood = useMemo(() => {
     if (data.moisture < 30) return { label: "Thirsty", hint: "Needs water soon" };
@@ -18,15 +27,21 @@ export default function Home() {
     return { label: "Happy", hint: "All conditions look great" };
   }, [data.moisture, data.temperature, data.light]);
 
-  const onStartMonitoring = async () => {
+  const onViewDashboard = () => {
+    navigate("/dashboard");
+  };
+
+  const onToggleMonitoring = async () => {
+    if (isConnected) {
+      disconnect();
+      return;
+    }
     try {
       await connect();
     } catch {
-      // UI will show error via status/lastError + auto retry
+      // status + lastError already updated; auto-reconnect (after user start) handled in hook
     }
   };
-
-  const onViewDashboard = () => navigate("/dashboard");
 
   return (
     <div className="home">
@@ -34,6 +49,7 @@ export default function Home() {
 
       <main className="container">
         <section className="hero" aria-label="Emotional Plant Pot hero">
+          {/* Left */}
           <motion.div
             className="left"
             initial={{ opacity: 0, y: 14 }}
@@ -43,7 +59,9 @@ export default function Home() {
             <div className="badge">
               <span className="dot" />
               Live IoT Monitoring
-              <span className="badgeMeta">{mockMode ? "Mock Mode" : transport.toUpperCase()}</span>
+              <span className="badgeMeta">
+                {mockMode ? "Mock Mode" : transport.toUpperCase()}
+              </span>
             </div>
 
             <h1 className="title">Emotional Plant Pot</h1>
@@ -55,6 +73,7 @@ export default function Home() {
               guidance.
             </p>
 
+            {/* Connection status (hero) */}
             <ConnectionPill status={status} error={lastError} />
 
             <div className="actions">
@@ -71,8 +90,8 @@ export default function Home() {
                 className="btn btnSecondary"
                 whileHover={{ y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={onStartMonitoring}
-                disabled={isConnecting || isConnected}
+                onClick={onToggleMonitoring}
+                disabled={isConnecting}
                 aria-busy={isConnecting}
               >
                 {isConnecting ? (
@@ -81,7 +100,7 @@ export default function Home() {
                     Connecting…
                   </span>
                 ) : isConnected ? (
-                  "Monitoring Active"
+                  "Disconnect"
                 ) : (
                   "Start Monitoring"
                 )}
@@ -94,6 +113,7 @@ export default function Home() {
             </div>
           </motion.div>
 
+          {/* Right */}
           <motion.div
             className="right"
             initial={{ opacity: 0, y: 18 }}
