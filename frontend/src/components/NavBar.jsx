@@ -3,7 +3,7 @@ import { useDevice } from "../context/DeviceConnectionProvider";
 import "./NavBar.css";
 
 export default function Navbar() {
-  const { status, isConnected, isConnecting, connect, disconnect, mockMode, transport } = useDevice();
+  const { status, isConnected, isConnecting, connect, disconnect, transport } = useDevice();
 
   const onMainAction = async () => {
     if (isConnected) {
@@ -68,7 +68,7 @@ export default function Navbar() {
             <span className="navConnDot" aria-hidden="true" />
             <div className="navConnText">
               <div className="navConnTitle">{indicator.title}</div>
-              <div className="navConnMeta">{mockMode ? "Mock" : transport.toUpperCase()}</div>
+              <div className="navConnMeta">{transport.toUpperCase()}</div>
             </div>
           </div>
 

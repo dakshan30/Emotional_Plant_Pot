@@ -3,7 +3,7 @@ import { useDevice } from "../context/DeviceConnectionProvider";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-  const { data, status, isConnected, isConnecting, mockMode, transport } = useDevice();
+  const { data, status, isConnected, isConnecting, transport } = useDevice();
 
   const emotionText = (data.emotion || "happy").toUpperCase();
   const lightValue = data.light_state || `${data.light} lux`;
@@ -24,23 +24,23 @@ export default function Dashboard() {
             <span className={`dashPill ${status.state}`}>
               {isConnecting ? "Connecting" : isConnected ? "Connected" : status.state}
             </span>{" "}
-            • Mode: {mockMode ? "Mock" : transport.toUpperCase()}
+            • Mode: {transport.toUpperCase()}
           </div>
         </motion.div>
 
         <section className="dashGrid">
-          <Card title="Moisture" value={`${data.moisture}%`} hint="Soil moisture" />
-          <Card title="Temperature" value={`${data.temperature}°C`} hint="Ambient temperature" />
-          <Card title="Humidity" value={`${data.humidity}%`} hint="Air humidity" />
-          <Card title="Light" value={lightValue} hint="Light condition" />
-          <Card title="Emotion" value={emotionText} hint="From ESP32" />
+          <Card title="Moisture" value={data.moisture == null ? "--" : `${data.moisture}%`} hint="Soil humidity" />
+          <Card
+            title="Temperature"
+            value={data.temperature == null ? "--" : `${data.temperature}°C`}
+            hint="Ambient temperature"
+          />
+          <Card title="Light" value={data.light == null ? "--" : `${data.light} lux`} hint="Light intensity" />
         </section>
 
         <section className="dashFooter">
           <div className="dashNote">
-            {mockMode
-              ? "You are currently running in static mock mode."
-              : "Live telemetry from ESP32 REST API."}
+            Your connectivity layer supports REST / WebSocket / MQTT.
           </div>
         </section>
       </main>

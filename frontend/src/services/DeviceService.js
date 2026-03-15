@@ -1,10 +1,9 @@
 /**
  * DeviceService
  * - Supports 3 transports: REST, WebSocket, MQTT
- * - Also supports MOCK mode for development (no hardware)
  *
  * Usage:
- *   const svc = new DeviceService({ transport: "mock", ... });
+ *   const svc = new DeviceService({ transport: "rest", ... });
  *   await svc.connect();
  *   svc.onData((data) => console.log(data));
  *   svc.disconnect();
@@ -12,8 +11,7 @@
 
 export default class DeviceService {
   constructor(options = {}) {
-    this.transport = (options.transport || "mock").toLowerCase(); // "mock" | "rest" | "ws" | "mqtt"
-    this.mockMode = options.mockMode ?? true;
+    this.transport = (options.transport || "rest").toLowerCase(); // "rest" | "ws" | "mqtt"
 
     this.restBaseUrl = options.restBaseUrl || "";
     this.wsUrl = options.wsUrl || "";
@@ -21,7 +19,7 @@ export default class DeviceService {
     this.mqttTopic = options.mqttTopic || "plantpot/telemetry";
     this.mqttUsername = options.mqttUsername || "";
     this.mqttPassword = options.mqttPassword || "";
-    this.deviceId = options.deviceId || "demo-device";
+    this.deviceId = options.deviceId || "emotional-plant-pot";
 
     this._connected = false;
 
@@ -31,7 +29,6 @@ export default class DeviceService {
 
     this._ws = null;
     this._mqtt = null;
-    this._mockTimer = null;
     this._restPollTimer = null;
     this._abortController = null;
   }
@@ -72,15 +69,6 @@ export default class DeviceService {
 
     this._emitStatus({ state: "connecting" });
 
-    // MOCK mode always works, no network required.
-    if (this.mockMode || this.transport === "mock") {
-      await sleep(900); // connecting feel
-      this._connected = true;
-      this._emitStatus({ state: "connected", detail: "Mock device connected" });
-      this._startMockStream();
-      return;
-    }
-
     if (this.transport === "ws") {
       return this._connectWebSocket();
     }
@@ -101,10 +89,6 @@ export default class DeviceService {
   disconnect() {
     this._connected = false;
     this._emitStatus({ state: "disconnected" });
-
-    // stop mock
-    if (this._mockTimer) clearInterval(this._mockTimer);
-    this._mockTimer = null;
 
     // stop REST polling
     if (this._restPollTimer) clearInterval(this._restPollTimer);
@@ -127,32 +111,6 @@ export default class DeviceService {
       } catch {}
       this._mqtt = null;
     }
-  }
-
-  // -----------------------------
-  // MOCK STREAM
-  // -----------------------------
-  _startMockStream() {
-    const emit = () => {
-      const moisture = clampInt(randInt(15, 95), 0, 100);
-      const temperature = clampInt(randInt(18, 38), -10, 80);
-      const humidity = clampInt(randInt(35, 85), 0, 100);
-      const light = clampInt(randInt(100, 1000), 0, 5000);
-
-      this._emitData({
-        deviceId: this.deviceId,
-        ts: Date.now(),
-        moisture,
-        temperature,
-        humidity,
-        light,
-        light_state: light > 700 ? "BRIGHT" : light > 300 ? "MIXED" : "DARK",
-        emotion: moisture < 30 ? "thirsty" : temperature > 35 ? "stressed" : "happy"
-      });
-    };
-
-    emit();
-    this._mockTimer = setInterval(emit, 2500);
   }
 
   // -----------------------------
@@ -330,15 +288,6 @@ export default class DeviceService {
 }
 
 // -------- helpers
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-function randInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-function clampInt(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
 function joinUrl(base, path) {
   return `${String(base).replace(/\/+$/, "")}/${String(path).replace(/^\/+/, "")}`;
 }
