@@ -5,6 +5,9 @@ import "./Dashboard.css";
 export default function Dashboard() {
   const { data, status, isConnected, isConnecting, mockMode, transport } = useDevice();
 
+  const emotionText = (data.emotion || "happy").toUpperCase();
+  const lightValue = data.light_state || `${data.light} lux`;
+
   return (
     <div className="dash">
       <div className="dashPattern" aria-hidden="true" />
@@ -26,14 +29,18 @@ export default function Dashboard() {
         </motion.div>
 
         <section className="dashGrid">
-          <Card title="Moisture" value={`${data.moisture}%`} hint="Soil humidity" />
+          <Card title="Moisture" value={`${data.moisture}%`} hint="Soil moisture" />
           <Card title="Temperature" value={`${data.temperature}°C`} hint="Ambient temperature" />
-          <Card title="Light" value={`${data.light} lux`} hint="Light intensity" />
+          <Card title="Humidity" value={`${data.humidity}%`} hint="Air humidity" />
+          <Card title="Light" value={lightValue} hint="Light condition" />
+          <Card title="Emotion" value={emotionText} hint="From ESP32" />
         </section>
 
         <section className="dashFooter">
           <div className="dashNote">
-            Your connectivity layer supports REST / WebSocket / MQTT. You are currently running in static mock mode.
+            {mockMode
+              ? "You are currently running in static mock mode."
+              : "Live telemetry from ESP32 REST API."}
           </div>
         </section>
       </main>
