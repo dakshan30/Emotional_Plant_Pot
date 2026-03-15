@@ -136,6 +136,7 @@ export default class DeviceService {
     const emit = () => {
       const moisture = clampInt(randInt(15, 95), 0, 100);
       const temperature = clampInt(randInt(18, 38), -10, 80);
+      const humidity = clampInt(randInt(35, 85), 0, 100);
       const light = clampInt(randInt(100, 1000), 0, 5000);
 
       this._emitData({
@@ -143,7 +144,10 @@ export default class DeviceService {
         ts: Date.now(),
         moisture,
         temperature,
-        light
+        humidity,
+        light,
+        light_state: light > 700 ? "BRIGHT" : light > 300 ? "MIXED" : "DARK",
+        emotion: moisture < 30 ? "thirsty" : temperature > 35 ? "stressed" : "happy"
       });
     };
 
@@ -175,7 +179,6 @@ export default class DeviceService {
       ws.onmessage = (evt) => {
         try {
           const payload = JSON.parse(evt.data);
-          // Expected: { moisture, temperature, light, ts? }
           this._emitData({ deviceId: this.deviceId, ts: payload.ts || Date.now(), ...payload });
         } catch (e) {
           this._emitError(e);
@@ -208,11 +211,8 @@ export default class DeviceService {
       throw err;
     }
 
-    // A real device could expose:
-    //   GET {REST_URL}/health  -> { ok: true }
-    //   GET {REST_URL}/telemetry -> { moisture, temperature, light }
     const healthUrl = joinUrl(this.restBaseUrl, "/health");
-    const telemetryUrl = joinUrl(this.restBaseUrl, "/telemetry");
+    const telemetryUrl = joinUrl(this.restBaseUrl, "/sensors");
 
     try {
       this._abortController = new AbortController();
@@ -228,7 +228,24 @@ export default class DeviceService {
           const r = await fetch(telemetryUrl, { signal: this._abortController.signal });
           if (!r.ok) throw new Error(`Telemetry failed: HTTP ${r.status}`);
           const payload = await r.json();
-          this._emitData({ deviceId: this.deviceId, ts: payload.ts || Date.now(), ...payload });
+
+          this._emitData({
+            deviceId: this.deviceId,
+            ts: payload.ts || Date.now(),
+            moisture: payload.soil_moisture_percent ?? payload.soil_moisture ?? 0,
+            temperature: payload.temperature ?? 0,
+            humidity: payload.humidity ?? 0,
+            light:
+              payload.light ??
+              (payload.light_state === "BRIGHT" ? 900 : payload.light_state === "MIXED" ? 500 : 120),
+            light_state: payload.light_state ?? "UNKNOWN",
+            emotion: payload.emotion ?? "happy",
+            // keep raw values too if needed in future UI
+            soil_moisture: payload.soil_moisture,
+            soil_moisture_percent: payload.soil_moisture_percent,
+            ldr1_do: payload.ldr1_do,
+            ldr2_do: payload.ldr2_do
+          });
         } catch (e) {
           this._emitError(e);
         }
@@ -247,7 +264,6 @@ export default class DeviceService {
   // MQTT
   // -----------------------------
   async _connectMqtt() {
-    // IMPORTANT: we keep this import dynamic so your app runs static even without mqtt installed.
     if (!this.mqttBrokerUrl) {
       const err = new Error("Missing MQTT broker URL. Set VITE_MQTT_BROKER_URL / REACT_APP_MQTT_BROKER_URL.");
       this._emitStatus({ state: "error", detail: err.message });
@@ -258,9 +274,7 @@ export default class DeviceService {
     try {
       mqtt = await import("mqtt");
     } catch (e) {
-      const err = new Error(
-        "MQTT package not installed. Run: npm i mqtt (only required when using MQTT transport)."
-      );
+      const err = new Error("MQTT package not installed. Run: npm i mqtt (only required when using MQTT transport).");
       this._emitStatus({ state: "error", detail: err.message });
       throw err;
     }
@@ -270,7 +284,7 @@ export default class DeviceService {
         const client = mqtt.connect(this.mqttBrokerUrl, {
           username: this.mqttUsername || undefined,
           password: this.mqttPassword || undefined,
-          reconnectPeriod: 0 // we handle reconnect in the hook
+          reconnectPeriod: 0
         });
 
         this._mqtt = client;
