@@ -5,7 +5,7 @@ const DeviceConnectionContext = createContext(null);
 
 export function DeviceConnectionProvider({ children }) {
   const device = useDeviceConnection({
-    deviceId: "emotional-plant-pot-demo"
+    deviceId: "emotional-plant-pot"
   });
 
   return (

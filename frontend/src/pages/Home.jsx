@@ -16,11 +16,13 @@ export default function Home() {
     disconnect,
     isConnecting,
     isConnected,
-    transport,
-    mockMode
+    transport
   } = useDevice();
 
   const mood = useMemo(() => {
+    if (data.moisture == null || data.temperature == null || data.light == null) {
+      return { label: "Waiting", hint: "Waiting for first telemetry packet" };
+    }
     if (data.moisture < 30) return { label: "Thirsty", hint: "Needs water soon" };
     if (data.temperature > 34) return { label: "Too Hot", hint: "Move to a cooler spot" };
     if (data.light < 220) return { label: "Too Dark", hint: "Increase sunlight" };
@@ -60,7 +62,7 @@ export default function Home() {
               <span className="dot" />
               Live IoT Monitoring
               <span className="badgeMeta">
-                {mockMode ? "Mock Mode" : transport.toUpperCase()}
+                {transport.toUpperCase()}
               </span>
             </div>
 
@@ -125,16 +127,15 @@ export default function Home() {
             </div>
 
             <div className="stats" role="group" aria-label="Live readings">
-              <MiniStat label="Moisture" value={`${data.moisture}%`} />
-              <MiniStat label="Temperature" value={`${data.temperature}°C`} />
-              <MiniStat label="Light" value={`${data.light} lux`} />
+              <MiniStat label="Moisture" value={data.moisture == null ? "--" : `${data.moisture}%`} />
+              <MiniStat
+                label="Temperature"
+                value={data.temperature == null ? "--" : `${data.temperature}°C`}
+              />
+              <MiniStat label="Light" value={data.light == null ? "--" : `${data.light} lux`} />
             </div>
 
-            <div className="finePrint">
-              {mockMode
-                ? "Static demo: telemetry is simulated. Flip env variables later to connect to ESP32/ESP8266."
-                : "Real-time telemetry from your device."}
-            </div>
+            <div className="finePrint">Real-time telemetry from your device.</div>
           </motion.div>
         </section>
       </main>
@@ -157,16 +158,18 @@ function MiniStat({ label, value }) {
 
 function ConnectionPill({ status, error }) {
   const view = getStatusView(status);
+  const detail = status?.detail || view.detail;
+  const extraError =
+    view.tone === "error" && error?.message && error.message !== status?.detail
+      ? ` — ${error.message}`
+      : "";
 
   return (
     <div className={`connPill conn-${view.tone}`} role="status" aria-live="polite">
       <span className="connDot" aria-hidden="true" />
       <div className="connText">
         <div className="connTitle">{view.title}</div>
-        <div className="connDetail">
-          {status?.detail || view.detail}
-          {view.tone === "error" && error?.message ? ` — ${error.message}` : ""}
-        </div>
+        <div className="connDetail">{detail}{extraError}</div>
       </div>
     </div>
   );

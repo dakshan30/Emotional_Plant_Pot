@@ -3,7 +3,7 @@ import { useDevice } from "../context/DeviceConnectionProvider";
 import "./Dashboard.css";
 
 export default function Dashboard() {
-  const { data, status, isConnected, isConnecting, mockMode, transport } = useDevice();
+  const { data, status, isConnected, isConnecting, transport } = useDevice();
 
   return (
     <div className="dash">
@@ -21,19 +21,23 @@ export default function Dashboard() {
             <span className={`dashPill ${status.state}`}>
               {isConnecting ? "Connecting" : isConnected ? "Connected" : status.state}
             </span>{" "}
-            • Mode: {mockMode ? "Mock" : transport.toUpperCase()}
+            • Mode: {transport.toUpperCase()}
           </div>
         </motion.div>
 
         <section className="dashGrid">
-          <Card title="Moisture" value={`${data.moisture}%`} hint="Soil humidity" />
-          <Card title="Temperature" value={`${data.temperature}°C`} hint="Ambient temperature" />
-          <Card title="Light" value={`${data.light} lux`} hint="Light intensity" />
+          <Card title="Moisture" value={data.moisture == null ? "--" : `${data.moisture}%`} hint="Soil humidity" />
+          <Card
+            title="Temperature"
+            value={data.temperature == null ? "--" : `${data.temperature}°C`}
+            hint="Ambient temperature"
+          />
+          <Card title="Light" value={data.light == null ? "--" : `${data.light} lux`} hint="Light intensity" />
         </section>
 
         <section className="dashFooter">
           <div className="dashNote">
-            Your connectivity layer supports REST / WebSocket / MQTT. You are currently running in static mock mode.
+            Your connectivity layer supports REST / WebSocket / MQTT.
           </div>
         </section>
       </main>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeviceService from "../services/DeviceService";
 
+const DEFAULT_DEVICE_REST_URL = "http://192.168.137.249";
+
 /**
  * useDeviceConnection
  * - Does NOT auto-connect on refresh by default.
@@ -9,15 +11,17 @@ import DeviceService from "../services/DeviceService";
  */
 export default function useDeviceConnection(options = {}) {
   const {
-    transport = getEnv("VITE_DEVICE_TRANSPORT", getEnv("REACT_APP_DEVICE_TRANSPORT", "mock")),
-    mockMode = getEnv("VITE_MOCK_DEVICE", getEnv("REACT_APP_MOCK_DEVICE", "true")) === "true",
-    restBaseUrl = getEnv("VITE_DEVICE_REST_URL", getEnv("REACT_APP_DEVICE_REST_URL", "")),
+    transport = getEnv("VITE_DEVICE_TRANSPORT", getEnv("REACT_APP_DEVICE_TRANSPORT", "rest")),
+    restBaseUrl = getEnv(
+      "VITE_DEVICE_REST_URL",
+      getEnv("REACT_APP_DEVICE_REST_URL", DEFAULT_DEVICE_REST_URL)
+    ),
     wsUrl = getEnv("VITE_DEVICE_WS_URL", getEnv("REACT_APP_DEVICE_WS_URL", "")),
     mqttBrokerUrl = getEnv("VITE_MQTT_BROKER_URL", getEnv("REACT_APP_MQTT_BROKER_URL", "")),
     mqttTopic = getEnv("VITE_MQTT_TOPIC", getEnv("REACT_APP_MQTT_TOPIC", "plantpot/telemetry")),
     mqttUsername = getEnv("VITE_MQTT_USERNAME", getEnv("REACT_APP_MQTT_USERNAME", "")),
     mqttPassword = getEnv("VITE_MQTT_PASSWORD", getEnv("REACT_APP_MQTT_PASSWORD", "")),
-    deviceId = options.deviceId || "demo-device",
+    deviceId = options.deviceId || "emotional-plant-pot",
 
     // NEW: control auto-connect behavior
     autoConnect = options.autoConnect ?? false
@@ -34,16 +38,15 @@ export default function useDeviceConnection(options = {}) {
   const [status, setStatus] = useState({ state: "idle", detail: "" }); // idle|connecting|connected|disconnected|error
   const [lastError, setLastError] = useState(null);
   const [data, setData] = useState({
-    moisture: 60,
-    temperature: 28,
-    light: 500,
-    ts: Date.now()
+    moisture: null,
+    temperature: null,
+    light: null,
+    ts: null
   });
 
   const config = useMemo(
     () => ({
       transport,
-      mockMode,
       restBaseUrl,
       wsUrl,
       mqttBrokerUrl,
@@ -52,7 +55,7 @@ export default function useDeviceConnection(options = {}) {
       mqttPassword,
       deviceId
     }),
-    [transport, mockMode, restBaseUrl, wsUrl, mqttBrokerUrl, mqttTopic, mqttUsername, mqttPassword, deviceId]
+    [transport, restBaseUrl, wsUrl, mqttBrokerUrl, mqttTopic, mqttUsername, mqttPassword, deviceId]
   );
 
   useEffect(() => {
@@ -159,19 +162,26 @@ export default function useDeviceConnection(options = {}) {
     disconnect,
     isConnected: status.state === "connected",
     isConnecting: status.state === "connecting",
-    transport,
-    mockMode
+    transport
   };
 }
 
 function getEnv(key, fallback) {
+  let value;
+
   try {
     if (typeof import.meta !== "undefined" && import.meta.env && key in import.meta.env) {
-      return import.meta.env[key];
+      value = import.meta.env[key];
     }
   } catch {}
-  if (typeof process !== "undefined" && process.env && key in process.env) {
-    return process.env[key];
+
+  if ((value == null || String(value).trim() === "") && typeof process !== "undefined" && process.env && key in process.env) {
+    value = process.env[key];
   }
-  return fallback;
+
+  if (value == null || String(value).trim() === "") {
+    return fallback;
+  }
+
+  return String(value).trim();
 }
