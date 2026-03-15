@@ -5,6 +5,9 @@ import "./Dashboard.css";
 export default function Dashboard() {
   const { data, status, isConnected, isConnecting, transport } = useDevice();
 
+  const emotionText = (data.emotion || "happy").toUpperCase();
+  const lightValue = data.light_state || `${data.light} lux`;
+
   return (
     <div className="dash">
       <div className="dashPattern" aria-hidden="true" />

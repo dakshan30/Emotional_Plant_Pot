@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
+import { API_BASE } from "../config/api";
 import axios from "axios";
 
 export default function History() {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/plants/history")
-      .then(res => setHistory(res.data));
+    axios.get(`${API_BASE}/api/plants/history`).then(res => setHistory(res.data));
   }, []);
 
   return (

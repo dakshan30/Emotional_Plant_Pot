@@ -23,7 +23,7 @@ export default function useDeviceConnection(options = {}) {
     mqttPassword = getEnv("VITE_MQTT_PASSWORD", getEnv("REACT_APP_MQTT_PASSWORD", "")),
     deviceId = options.deviceId || "emotional-plant-pot",
 
-    // NEW: control auto-connect behavior
+    // control auto-connect behavior
     autoConnect = options.autoConnect ?? false
   } = options;
 
@@ -32,11 +32,13 @@ export default function useDeviceConnection(options = {}) {
   const reconnectAttemptRef = useRef(0);
   const manuallyDisconnectedRef = useRef(false);
 
-  // NEW: becomes true only after user clicks "Start Monitoring"
+  // becomes true only after user clicks "Start Monitoring"
   const hasUserStartedRef = useRef(false);
 
   const [status, setStatus] = useState({ state: "idle", detail: "" }); // idle|connecting|connected|disconnected|error
   const [lastError, setLastError] = useState(null);
+
+  // ✅ Updated defaults for ESP32 payload
   const [data, setData] = useState({
     moisture: null,
     temperature: null,
@@ -59,7 +61,6 @@ export default function useDeviceConnection(options = {}) {
   );
 
   useEffect(() => {
-    // cleanup existing service
     if (serviceRef.current) {
       serviceRef.current.disconnect();
       serviceRef.current = null;
@@ -86,9 +87,6 @@ export default function useDeviceConnection(options = {}) {
   }, [config]);
 
   const scheduleReconnect = useCallback(() => {
-    // Do not reconnect unless:
-    // 1) user clicked start at least once, AND
-    // 2) user didn't manually disconnect
     if (!hasUserStartedRef.current) return;
     if (manuallyDisconnectedRef.current) return;
 
@@ -107,19 +105,16 @@ export default function useDeviceConnection(options = {}) {
     }, delay);
   }, []);
 
-  // Auto reconnect only after user initiated connect
   useEffect(() => {
     if (!hasUserStartedRef.current) return;
-
     if (status.state === "disconnected" || status.state === "error") {
       scheduleReconnect();
     }
   }, [status.state, scheduleReconnect]);
 
   const connect = useCallback(async () => {
-    hasUserStartedRef.current = true; // user initiated connection
+    hasUserStartedRef.current = true;
     manuallyDisconnectedRef.current = false;
-
     setLastError(null);
     reconnectAttemptRef.current = 0;
 
@@ -144,11 +139,9 @@ export default function useDeviceConnection(options = {}) {
     serviceRef.current?.disconnect();
   }, []);
 
-  // OPTIONAL: if you ever want auto-connect in some page, you can pass autoConnect:true
   useEffect(() => {
     if (!autoConnect) return;
     if (hasUserStartedRef.current) return;
-    // mark as user-started so reconnect works in this mode
     hasUserStartedRef.current = true;
     connect().catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps

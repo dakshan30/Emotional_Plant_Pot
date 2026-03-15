@@ -8,6 +8,7 @@ import {
   LinearScale,
   PointElement
 } from "chart.js";
+import { API_BASE } from "../config/api";
 
 ChartJS.register(LineElement, CategoryScale, LinearScale, PointElement);
 
@@ -15,8 +16,7 @@ export default function Analytics() {
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/plants/history")
-      .then(res => setHistory(res.data));
+    axios.get(`${API_BASE}/api/plants/history`).then(res => setHistory(res.data));
   }, []);
 
   const chartData = {
